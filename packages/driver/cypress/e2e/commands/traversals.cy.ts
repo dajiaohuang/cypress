@@ -394,3 +394,45 @@ describe('src/cy/commands/traversals', () => {
     })
   })
 })
+
+describe('src/cy/commands/traversals - first command in the test', () => {
+  const childWithoutParent = 'Oops, it looks like you are trying to call a child command before running a parent command.'
+
+  const traversals = ['find', 'filter', 'not', 'children', 'eq', 'closest', 'first', 'last', 'next', 'nextAll', 'nextUntil', 'parent', 'parents', 'parentsUntil', 'prev', 'prevAll', 'prevUntil', 'siblings']
+
+  traversals.forEach((name) => {
+    it(`throws when cy.${name}() has no previous subject`, (done) => {
+      cy.on('fail', (err) => {
+        expect(err.message).to.match(new RegExp(`^${_.escapeRegExp(childWithoutParent)}`))
+        expect(err.message).to.include(`\`cy.${name}(`)
+        expect(err.message).not.to.include('Cannot read properties')
+
+        done()
+      })
+
+      cy[name]()
+    })
+  })
+
+  it('names the command and its argument for cy.eq(0)', (done) => {
+    cy.on('fail', (err) => {
+      expect(err.message).to.include(childWithoutParent)
+      expect(err.message).to.include('`cy.eq(0)`')
+
+      done()
+    })
+
+    cy.eq(0)
+  })
+
+  it('names the command for cy.first()', (done) => {
+    cy.on('fail', (err) => {
+      expect(err.message).to.include(childWithoutParent)
+      expect(err.message).to.include('`cy.first()`')
+
+      done()
+    })
+
+    cy.first()
+  })
+})

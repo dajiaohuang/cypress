@@ -263,3 +263,16 @@ describe('src/cy/commands/querying - shadow dom', () => {
     })
   })
 })
+
+describe('src/cy/commands/querying - shadow dom - first command in the test', () => {
+  it('throws when cy.shadow() has no previous subject', (done) => {
+    cy.on('fail', (err) => {
+      expect(err.message).to.match(/^Oops, it looks like you are trying to call a child command before running a parent command\./)
+      expect(err.message).to.include('`cy.shadow()`')
+
+      done()
+    })
+
+    cy.shadow()
+  })
+})

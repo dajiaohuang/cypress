@@ -83,6 +83,14 @@ const isType = (subject, type, name: string, cy: $Cy) => {
 
   // every validation failed and we had more than one validation
   if (errors.length === types.length) {
+    // A query chained directly off `cy` as the first command has no previous
+    // command, so the validators' errors can't describe what went wrong
+    if (_.isUndefined(subject)) {
+      const current = cy.state('current')
+
+      isChildCommand(current, current.get('args'), cy)
+    }
+
     err = errors[0]
 
     if (types.length > 1) {
@@ -106,6 +114,8 @@ const isChildCommand = (command, args, cy: $Cy) => {
         cmd: command.get('name'),
         args: _.isString(args[0]) ? `\"${stringifiedArg}\"` : stringifiedArg,
       },
+      // a missing parent subject never appears on a later retry
+      errProps: { retry: false },
     })
   }
 }
