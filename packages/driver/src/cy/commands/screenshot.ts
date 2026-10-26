@@ -6,6 +6,7 @@ import Promise from 'bluebird'
 
 import $Screenshot from '../../cypress/screenshot'
 import $dom from '../../dom'
+import { getNativeProp } from '../../dom/elements/nativeProps'
 import $errUtils from '../../cypress/error_utils'
 import $utils from '../../cypress/utils'
 import type { Log } from '../../cypress/log'
@@ -218,7 +219,33 @@ const takeFullPageScreenshot = (state: StateFunc, automationOptions: ScreenshotA
   .finally(resetScrollOverrides)
 }
 
-const applyPaddingToElementPositioning = (elPosition: Cypress.ElementPositioning, automationOptions: ScreenshotAutomationOptions) => {
+// Screenshot clips and scrolling are relative to the AUT, not the subject's
+// document when an element is inside a same-origin iframe.
+const getElementPositioningForScreenshot = ($el: JQuery<HTMLElement>, win: Window) => {
+  const { width, height, fromElViewport } = $dom.getElementPositioning($el)
+  let { top, left, bottom } = fromElViewport
+  let elementWindow = $dom.getWindowByElement($el[0])
+
+  while (elementWindow !== win) {
+    const frame = getNativeProp(elementWindow, 'frameElement') as HTMLIFrameElement
+    const frameRect = frame.getBoundingClientRect()
+    const offsetTop = frameRect.top + frame.clientTop
+
+    left += frameRect.left + frame.clientLeft
+    top += offsetTop
+    bottom += offsetTop
+    elementWindow = $dom.getWindowByElement(frame)
+  }
+
+  return {
+    width,
+    height,
+    fromElViewport: { top, left, bottom },
+    fromElWindow: { top: Math.ceil(top + win.scrollY) },
+  }
+}
+
+const applyPaddingToElementPositioning = (elPosition: ReturnType<typeof getElementPositioningForScreenshot>, automationOptions: ScreenshotAutomationOptions) => {
   if (!automationOptions.padding) {
     return elPosition
   }
@@ -251,7 +278,7 @@ const takeElementScreenshot = ($el: JQuery<HTMLElement>, state: StateFunc, autom
   const resetScrollOverrides = scrollOverrides(win, doc)
 
   let elPosition = applyPaddingToElementPositioning(
-    $dom.getElementPositioning($el),
+    getElementPositioningForScreenshot($el, win),
     automationOptions,
   )
   const viewportHeight = getViewportHeight(state)
@@ -265,7 +292,7 @@ const takeElementScreenshot = ($el: JQuery<HTMLElement>, state: StateFunc, autom
 
     const afterScroll = () => {
       elPosition = applyPaddingToElementPositioning(
-        $dom.getElementPositioning($el),
+        getElementPositioningForScreenshot($el, win),
         automationOptions,
       )
 

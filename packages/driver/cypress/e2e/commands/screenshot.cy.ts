@@ -1278,3 +1278,102 @@ describe('src/cy/commands/screenshot', () => {
     })
   })
 })
+
+describe('same-origin iframe element screenshot pixels', { retries: 0, screenshotOnRunFailure: false }, () => {
+  const cases = [
+    { depth: 0, border: 0 },
+    { depth: 1, border: 0 },
+    { depth: 1, border: 10 },
+    { depth: 2, border: 0 },
+    { depth: 2, border: 10 },
+    { depth: 1, border: 10, autScroll: true },
+    { depth: 2, border: 10, innerScroll: true },
+    { depth: 1, border: 10, padding: 10 },
+  ]
+
+  for (const { depth, border, autScroll, innerScroll, padding = 0 } of cases) {
+    it(`captures depth ${depth}, border ${border}, AUT scroll ${!!autScroll}, iframe scroll ${!!innerScroll}, padding ${padding}`, () => {
+      let screenshotPath: string
+      let pixelRatio: number
+
+      cy.visit('/fixtures/dom.html')
+      cy.document().then((doc) => {
+        doc.head.innerHTML = '<style>html,body{margin:0;background:rgb(0,0,180)}</style>'
+        doc.body.innerHTML = ''
+        if (autScroll) {
+          doc.body.style.height = '2000px'
+          doc.defaultView!.scrollTo(0, 60)
+        }
+
+        const populate = (document: Document, remaining: number): ReturnType<typeof Cypress.Promise.resolve<HTMLElement>> => {
+          if (innerScroll && document !== doc) {
+            document.body.style.cssText = 'height:800px;width:800px'
+          }
+
+          if (!remaining) {
+            document.body.innerHTML = `<div id="target" style="position:absolute;left:25px;top:${innerScroll ? 130 : 30}px;width:60px;height:40px;background:rgb(240,30,20)"></div>`
+            if (innerScroll) document.defaultView!.scrollTo(10, 60)
+
+            return Cypress.Promise.resolve(document.getElementById('target')!)
+          }
+
+          return new Cypress.Promise((resolve) => {
+            const frame = document.createElement('iframe')
+
+            frame.style.cssText = `position:absolute;left:90px;top:100px;width:300px;height:220px;border:${border}px solid lime;`
+            frame.onload = () => resolve(populate(frame.contentDocument!, remaining - 1))
+            frame.srcdoc = '<style>html,body{margin:0;background:rgb(0,0,180)}</style><body></body>'
+            document.body.appendChild(frame)
+            if (innerScroll && document !== doc) document.defaultView!.scrollTo(10, 60)
+          })
+        }
+
+        return populate(doc, depth)
+      }).then(($target) => {
+        cy.wrap($target).screenshot(`iframe-element-${depth}-${border}-${!!autScroll}-${!!innerScroll}-${padding}`, {
+          overwrite: true,
+          padding,
+          blackout: [],
+          onAfterScreenshot: (_el, details) => {
+            screenshotPath = details.path
+            pixelRatio = details.pixelRatio
+          },
+        })
+      }).then(() => {
+        cy.readFile(screenshotPath, 'base64').then((base64) => {
+          return new Cypress.Promise<void>((resolve, reject) => {
+            const image = new Image()
+
+            image.onerror = reject
+            image.onload = () => {
+              try {
+                const canvas = document.createElement('canvas')
+
+                canvas.width = image.naturalWidth
+                canvas.height = image.naturalHeight
+                const ctx = canvas.getContext('2d')!
+
+                ctx.drawImage(image, 0, 0)
+                expect([canvas.width, canvas.height]).to.deep.eq([(60 + padding * 2) * pixelRatio, (40 + padding * 2) * pixelRatio])
+                // Check real PNG pixels, not just the requested clip or dimensions.
+                for (const [x, y] of [[1, 1], [58, 1], [1, 38], [58, 38], [30, 20]]) {
+                  const pixel = ctx.getImageData((x + padding) * pixelRatio, (y + padding) * pixelRatio, 1, 1).data
+
+                  expect(Array.from(pixel), `target pixel ${x},${y}`).to.deep.eq([240, 30, 20, 255])
+                }
+
+                if (padding) expect(Array.from(ctx.getImageData(1, 1, 1, 1).data)).to.deep.eq([0, 0, 180, 255])
+
+                resolve()
+              } catch (err) {
+                reject(err)
+              }
+            }
+
+            image.src = `data:image/png;base64,${base64}`
+          })
+        })
+      })
+    })
+  }
+})

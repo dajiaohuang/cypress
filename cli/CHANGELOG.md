@@ -7,6 +7,7 @@
 
 **Bugfixes:**
 
+- Element [`.screenshot()`](https://on.cypress.io/screenshot) captures now target visible elements inside offset same-origin iframes correctly, including nested frames, frame borders, and scrolled documents. Addresses [#14283](https://github.com/cypress-io/cypress/issues/14283).
 - [`cy.contains()`](https://on.cypress.io/contains) now works inside [`cy.document().within()`](https://on.cypress.io/within). Missing content reports an assertion error instead of `TypeError: subject.each is not a function`. Fixes [#24178](https://github.com/cypress-io/cypress/issues/24178).
 - Responses compressed with `Content-Encoding: x-gzip` are now decoded correctly when Cypress's HTTP proxy rewrites their contents, preventing compressed pages from becoming corrupted during script injection. Fixes [#34387](https://github.com/cypress-io/cypress/issues/34387).
 - [`cy.request()`](https://on.cypress.io/request) now fails with an invalid encoding error when passed `encoding: false`, `0`, or an empty string, instead of crashing Cypress with `TypeError [ERR_UNKNOWN_ENCODING]: Unknown encoding: false`. Fixes [#24192](https://github.com/cypress-io/cypress/issues/24192).
