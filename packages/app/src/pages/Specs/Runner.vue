@@ -119,7 +119,7 @@ const configChangeHandler: SubscriptionHandlerArg<any, any> = (
   initialLoad = false
 }
 
-useSubscription({ query: Runner_ConfigChangeDocument }, configChangeHandler)
+useSubscription({ query: Runner_ConfigChangeDocument, pause: isRunMode }, configChangeHandler)
 
 // because we are not using GraphQL in run mode, and we still need
 // way to get the specs, we simply attach them to window when

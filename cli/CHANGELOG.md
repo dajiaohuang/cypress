@@ -14,6 +14,7 @@
 
 **Bugfixes:**
 
+- Fixed an issue where a GraphQL connection reconnecting during `cypress run` could restart the current spec and report only its final execution. Fixes [#35236](https://github.com/cypress-io/cypress/issues/35236).
 - Fixed an issue where a spec whose bundled file includes a large inline source map could crash the browser tab, leaving `cypress run` hanging with no error until it was killed. The crash could happen while the spec first loaded, or when it loaded again after its first [`cy.visit()`](https://on.cypress.io/visit) to another origin. Specs with inline source maps now also load faster and use less memory. Fixes [#35201](https://github.com/cypress-io/cypress/issues/35201).
 - Fixed an issue where, in Chrome 158 and later, `cypress run` stopped with the error `* is not a valid URL` when it opened a second spec. Fixes [#35195](https://github.com/cypress-io/cypress/issues/35195).
 - Fixed an issue where, in Chrome 158 and later with [`injectDocumentDomain`](https://docs.cypress.io/app/references/configuration#e2e) enabled, navigating the application under test within [`cy.origin()`](https://on.cypress.io/origin) could fail with errors such as `Blocked a frame with origin` or `does not have permission to navigate the target frame`. Chrome 158 stopped firing `unload` events, which Cypress uses to track navigations. Fixed in [#35198](https://github.com/cypress-io/cypress/pull/35198).
