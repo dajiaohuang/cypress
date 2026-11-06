@@ -7,7 +7,7 @@ import { Automation } from '../../../lib/automation'
 import { BrowserCriClient } from '../../../lib/browsers/browser-cri-client'
 import * as electronApp from '../../../lib/util/electron-app'
 import utils from '../../../lib/browsers/utils'
-import { screencastOpts } from '../../../lib/browsers/cdp-protocol/cdp_automation'
+import { CdpAutomation, screencastOpts } from '../../../lib/browsers/cdp-protocol/cdp_automation'
 import menu from '../../../lib/gui/menu'
 import * as plugins from '../../../lib/plugins'
 import * as Windows from '../../../lib/gui/windows'
@@ -184,6 +184,28 @@ describe('lib/browsers/electron', () => {
   afterEach(() => {
     electron.clearInstanceState()
     vi.restoreAllMocks()
+  })
+
+  describe('screenshot screencast handling', () => {
+    it.each([
+      { isTextTerminal: true, video: false, temporary: false },
+      { isTextTerminal: false, video: false, temporary: true },
+      { isTextTerminal: true, video: true, temporary: false },
+    ])('uses a temporary screencast only in open mode without video: $isTextTerminal / $video', async ({ isTextTerminal, video, temporary }) => {
+      const onRequest = vi.fn().mockResolvedValue('screenshot')
+
+      vi.spyOn(CdpAutomation, 'create').mockResolvedValue({ onRequest } as any)
+      options.isTextTerminal = isTextTerminal
+      options.videoApi = video ? {} as any : undefined
+      const cdpAutomation = await electron._getAutomation(win, options, {})
+
+      expect(await cdpAutomation.onRequest('take:screenshot', {})).toBe('screenshot')
+      expect(onRequest).toHaveBeenCalledOnce()
+      const commands = pageCriClient.send.mock.calls.map(([command]) => command)
+
+      expect(commands.filter((command) => command === 'Page.startScreencast')).toHaveLength(temporary ? 1 : 0)
+      expect(commands.filter((command) => command === 'Page.stopScreencast')).toHaveLength(temporary ? 1 : 0)
+    })
   })
 
   describe('.connectToNewSpec', () => {
